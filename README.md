@@ -1,2 +1,2 @@
-# Community-Detection-with-tiWCC
-The community detection algorithm that uses the temporal Weighted Clustering Coefficient metric in Historical Graphs
+# Community-Detection-in-Temporal-Graphs
+This is a community detection framework tailored for temporal graphs. We introduce an algorithm designed for temporal graphs with edge intervals (t-iWCC), followed by a corresponding approach adapted for temporal graph with edge weights (t-wWCC). Additionally, we propose two variants of the Label Propagation Algorithm (LPA): one that operates using interval-based edge information (t-iLPA), and another that leverages weighted edges to capture temporal dynamics effectively (t-wLPA).
