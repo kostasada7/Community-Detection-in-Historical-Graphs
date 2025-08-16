@@ -4,7 +4,6 @@ import org.apache.spark.graphx.{Graph, _}
 import scala.reflect.ClassTag
 
 /**
-  * Created by tariq on 08/01/18.
   * functions to calculate the Weighted Community Clustering metric
   */
 object WCCMetric {
@@ -13,37 +12,12 @@ object WCCMetric {
    * calculates the vertex local WCC in respect to community c
    */
   def computeWccV(vData: VertexData, communityData: CommunityData, vtC: Float, tC: Float): Float = {
-    println(s" Node: ${vData.vId} sumTimeIntervalLengths: $vtC, counter: $tC, t: ${vData.t}, vt: ${vData.vt}, t1: ${vData.t1}")
+    //println(s" Node: ${vData.vId} sumTimeIntervalLengths: $vtC, counter: $tC, t: ${vData.t}, vt: ${vData.vt}, t1: ${vData.t1}")
     if (vData.t == 0) return 0f
     val numerator = tC * vData.vt
     val denominator = vData.t * (communityData.r - 1 + vData.vt - vtC)
     numerator / denominator
   }
-
-  //def combinations(n: Int, k: Int): BigInt = {
-
-      //(BigInt(1) to k).foldLeft(BigInt(1)) { (acc, i) =>
-       // acc * (n - i + 1) / i
-      //}
-  //}
-
-
-  /**
-   * Calculates the approximation of the change to the global wcc that
-   * would be caused by inserting this vertex into the new community.
-   */
-  //def computeWccI(vData: VertexData, cData: CommunityData, dIn: Double, dOut: Double, globalCC: Double, q: Double): Double = {
-    //if (dIn >= 2) {
-      //val numCombinations = combinations(dIn, 2).toDouble
-      //val denomCombinations = combinations(dIn + dOut, 2).toDouble
-      //val commonFactor = 1 * cData.avgCC * vData.vt
-      //val divisor =1 * globalCC * (cData.r - 1 + vData.vt - (dIn * vData.vt / (dIn + dOut)))
-      //commonFactor / divisor
-    //} else {
-    //  0.0
-    //}
-  //}
-
 
   /**
     * Calculates the approximalogCommunities.println("Analytical Communittion of the change to the global wcc that
