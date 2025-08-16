@@ -20,26 +20,16 @@ import java.text.SimpleDateFormat
 import java.util.Date
 
 /**
- * Created by tariq on 31/12/17.
- * Implementation of the "Scalable Community Detection" algorithm.
- * @note We always cache a new graph if it will be used multiple time (and un-cache
- * it afterwards).
- * @see "High quality, scalable and parallel community detection for large real graphs"
- *      https://dl.acm.org/citation.cfm?id=2568010
- * @see "Distributed Community Detection with the WCC Metric"
- *      https://dl.acm.org/citation.cfm?id=2744715
- * @see "Shaping communities out of triangles"
- *      https://dl.acm.org/citation.cfm?id=2398496
+ * Implementation of the "t-iWCC" algorithm.
  */
 object DistributedWCC {
 
   // Main parameters
   private val threshold = 0.01f         // default threshold 0.01
-  private var maxRetries = 5    // default number of retries 5
   private var numPartitions = 200 // default number of partitions 200
   var vertexCount = 0
   // Main parameters end
-  // --------------------------------------------
+ 
 
   def runWithStats[VD: ClassTag, ED: ClassTag](graph: Graph[VD, ED], sc: SparkContext, queryTimeInterval: (Int, Int),
                                                maxRetries: Int = this.maxRetries,
@@ -207,20 +197,9 @@ object DistributedWCC {
   /**
    * PHASE I
    * Optimize the graph by removing edges that does not close any triangles:
-   * - Compute the number of triangles passing through each vertex.
+   * - Compute the contribution of triangles
    * - Get the neighbors of each vertex.
    * - Remove edges/vertices that are not part of any triangles.
-   * @param graph
-   * @param isCanonical whether the passed `graph` is canonical or not:
-   * The Triangle Count algorithm requires that the graph to be canonical. However,
-   * The canonicalization procedure is costly as it requires repartitioning the graph.
-   * The parameter `isCanonical` should be passed as true if the input data is
-   * already in "canonical form", meaning all of the following holds:
-   * <ul>
-   * <li> There are no self edges</li>
-   * <li> All edges are oriented (src is greater than dst)</li>
-   * <li> There are no duplicate edges</li>
-   * </ul>
    */
   def preprocess[VD: ClassTag, ED: ClassTag](graph: Graph[VD, ED], isCanonical: Boolean, queryTimeIntervalLength: Int): Graph[VertexData, ED] = {
     Logger.getRootLogger.warn("Phase: Preprocessing - Counting Triangles")
@@ -270,8 +249,8 @@ object DistributedWCC {
   /**
    * PHASE II
    * Computes an initial partition of the graph:
-   * - Compute the clustering coefficient of each vertex of the graph.
-   * - Sort vertices by the clustering coefficient then degree in descending order.
+   * - Compute the temporal local clustering coefficient of each vertex of the graph.
+   * - Sort vertices by the temporal local clustering coefficient in descending order.
    * - We start in a state in which all vertices are considered as not `visited`.
    * - For each non-`visited` vertex, in the calculated order, do the following:
    *     - Create a new community that contains the vertex and all its neighbors
@@ -325,16 +304,6 @@ object DistributedWCC {
       },
       mergeMsg = _ ++ _
     )
-
-//    // Extract initial partition and save it to a file
-//    val initialPartition = pregelGraph.vertices.collect()
-//      .groupBy { case (vId, vData) => vData.cId }
-//      .map { case (cId, vertices) => vertices.map(_._1).mkString(", ") }
-//      .mkString("\n")
-//
-//    val writer = new PrintWriter(new File("initial_partition.txt"))
-//    writer.write(initialPartition)
-//    writer.close()
     pregelGraph.vertices.count()
 
     Logger.getRootLogger.warn(s"Initial Partition took: ${System.currentTimeMillis() - before}")
@@ -348,66 +317,6 @@ object DistributedWCC {
 
     partitionedGraph
   }
-
-
-//  def performInitialPartition[ED: ClassTag](graph: Graph[VertexData, ED], maxIterations: Int = 2): Graph[VertexData, ED] = {
-//    val before = System.currentTimeMillis()
-//
-//    val pregelGraph = graph.pregel(null.asInstanceOf[VertexMessage], maxIterations)(
-//      vprog = (vId, data, msg) => {
-//        val newData = data.copy()
-//        if (msg != null) {
-//          val msgSelf = VertexMessage.create(newData)
-//          if (VertexMessage.ordering.gt(msg, msgSelf)) {
-//            newData.cId = msg.vId
-//            newData.changed = newData.isCenter
-//          } else {
-//            newData.cId = vId
-//            newData.changed = !newData.isCenter
-//          }
-//        } else {
-//          newData.changed = true
-//        }
-//        newData
-//      },
-//      sendMsg = triplet => {
-//        if (triplet.srcAttr.changed) {
-//          val msg = VertexMessage.create(triplet.srcAttr)
-//          Iterator((triplet.dstId, msg), (triplet.srcId, msg))
-//        } else Iterator.empty
-//      },
-//      mergeMsg = VertexMessage.pickHighest
-//    )
-//
-//    val initialPartition = pregelGraph.vertices
-//      .map { case (vId, data) => (data.cId, vId) }
-//      .groupByKey()
-//      .map { case (cId, vertices) => s"Community $cId: " + vertices.mkString(", ") }
-//      .collect()
-//      .mkString("\n")
-//
-//    println("Initial Partition:")
-//    // println(initialPartition)
-//
-//    import java.io.PrintWriter
-//    new PrintWriter("initial_partition.txt") { write(initialPartition); close() }
-//
-//    val finalGraph = pregelGraph
-//      .mapVertices { case (_, data) =>
-//        val cleaned = data.copy()
-//        cleaned.changed = false
-//        cleaned.neighbors = Nil
-//        cleaned
-//      }
-//      .partitionByCommunity(numPartitions, _.cId)
-//
-//    println(s"Initial Partition took: ${System.currentTimeMillis() - before} ms")
-//    finalGraph
-//  }
-
-
-
-
 
   /**
    * PHASE III
@@ -451,10 +360,9 @@ object DistributedWCC {
       // calculate new global WCC
       before = System.currentTimeMillis()
       val newCs = sc.broadcast(computeCommunityStats(movementGraph, queryTimeInterval, queryTimeIntervalLength))
-      val skata = System.currentTimeMillis() - before
+      val skat = System.currentTimeMillis() - before
       val newWcc = computeGlobalWCC(movementGraph, queryTimeIntervalLength, newCs)
-      retriesLeft -= 1
-      Logger.getRootLogger.warn(s"calculate WCC took: $skata")
+      Logger.getRootLogger.warn(s"calculate WCC took: $skat")
       Logger.getRootLogger.warn(s"New WCC $newWcc")
       Logger.getRootLogger.warn(s"Initial WCC $bestWcc")
       Logger.getRootLogger.warn(s"Retries left $retriesLeft")
@@ -462,7 +370,6 @@ object DistributedWCC {
       if (newWcc > bestWcc) {
         if (newWcc / bestWcc - 1 > threshold) {
           Logger.getRootLogger.warn("Resetting retries.")
-          retriesLeft = maxRetries
         }
         bestPartition.unpersist(blocking = false)
         bestPartition = movementGraph.partitionByCommunity(numPartitions, _.cId).cache()
@@ -569,62 +476,6 @@ object DistributedWCC {
   }
 
 
-//    def computeCommunityStats[ED: ClassTag](
-//                                           graph: Graph[VertexData, ED],
-//                                           queryTimeInterval: (Int, Int),
-//                                           queryTimeIntervalLength: Int
-//                                         ): Map[VertexId, CommunityData] = {
-//
-//    val (queryStart, queryEnd) = queryTimeInterval
-//
-//    val ccStats = graph.vertices
-//      .map { case (_, vData) => (vData.cId, (1L, vData.cc)) }
-//      .reduceByKey((a, b) => (a._1 + b._1, a._2 + b._2))
-//      .persist(StorageLevel.MEMORY_AND_DISK)
-//
-//    val edgeStats = graph.triplets
-//      .flatMap { triplet =>
-//        val (startAttr, endAttr) = triplet.attr.asInstanceOf[(Int, Int)]
-//        val start = math.max(startAttr, queryStart)
-//        val end = math.min(endAttr, queryEnd)
-//
-//        if (start > end) Iterator.empty
-//        else {
-//          val weight = (end - start + 1f) / queryTimeIntervalLength
-//          val srcC = triplet.srcAttr.cId
-//          val dstC = triplet.dstAttr.cId
-//
-//          if (srcC == dstC)
-//            Iterator.single((srcC, (weight, 0f)))
-//          else
-//            Iterator((srcC, (0f, weight)), (dstC, (0f, weight)))
-//        }
-//      }
-//      .reduceByKey((a, b) => (a._1 + b._1, a._2 + b._2))
-//      .persist(StorageLevel.MEMORY_AND_DISK)
-//
-//    val joinedStats = ccStats
-//      .leftOuterJoin(edgeStats)
-//      .mapValues {
-//        case ((size, ccSum), Some((intW, extW))) =>
-//          new CommunityData(size.toInt, intW, extW, ccSum / size)
-//        case ((size, ccSum), None) =>
-//          new CommunityData(size.toInt, 0f, 0f, ccSum / size)
-//      }
-//
-//    val result = joinedStats.collectAsMap().toMap
-//
-////    // Print community stats here:
-////    println("Community Stats:")
-////    result.foreach { case (cId, data) =>
-////      println(s"Community $cId: size=${data.r}, internalWeight=${data.a}, externalWeight=${data.b}, avgCC=${data.avgCC}")
-////    }
-//
-//    result
-//  }
-
-
-
   /**
    * calculates the best movements for all vertices in a partition.
    * @param graph
@@ -646,8 +497,6 @@ object DistributedWCC {
         val start = Math.max(startTime, queryTimeInterval._1)
         val end = Math.min(endTime, queryTimeInterval._2)
 
-        //println(start)
-        //println(end)
           val weight: Float = (end - start + 1f) / queryTimeIntervalLength
           //println(weight)
           ctx.sendToDst(Map(ctx.srcAttr.cId -> weight))
@@ -675,13 +524,6 @@ object DistributedWCC {
    *  - Remove: The vertex removes itself from its current community and becomes
    *    the sole member of its own.
    *  - Stay: The vertex remains in its current community.
-   * @param vertex the vertex to move
-   * @param vcDegrees map of communities adjacent to vertex `vId` and the count of
-   *                 edge connected them to vertex `vId`
-   * @param communityStats community statistics
-   * @param globalCC the graph average clustering coeficient value
-   * @param vertexCount the vertices count
-   * @return an updated statistics of vertex `vId`
    */
   private def bestMovement(vertex: VertexData, vcDegrees: Map[VertexId, Float],
                            communityStats: Map[VertexId, CommunityData],
