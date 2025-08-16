@@ -7,9 +7,7 @@ import org.apache.spark.sql._
 import org.apache.spark.graphx._
 import scala.reflect.ClassTag
 
-/**
- * Created by tariq on 06/01/18.
- */
+
 object GraphXOps {
   implicit class GXOperations[VD: ClassTag, ED: ClassTag](graph: Graph[VD, ED]) {
 
