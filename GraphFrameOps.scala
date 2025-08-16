@@ -7,7 +7,6 @@ import wcc.GraphXOps.GXOperations
 import org.apache.spark.graphx.{Edge, Graph}
 
 /**
- * Created by tariq on 03/01/18.
  * Adds the SCD algorithm to the GraphFrame class.
  * For documentation refer to [[wcc.DistributedWCC]].
  */
