@@ -3,17 +3,15 @@ package wcc
 import org.apache.spark.graphx.VertexId
 
 /**
-  * Created by tariq on 01/01/18.
-  *
   * @param vId the vertex Identifier.
-  * @param t the number of links between neighbors of the vertex aka triangle count.
+  * @param t the contribution of links between neighbors of the vertex aka triangle count.
   * @param vt The number of vertices that form at least one triangle with x.
   */
 
 class VertexData(val vId: VertexId = -1L, val t: Float = 0f, val vt: Float = 0f, val t1: Float) extends Serializable {
 
   var cId: VertexId = vId
-
+  // calculation of the tlCC
   def cc: Float = {
     // Adjust the combinatorial calculation as per the requirements
     if (t1 != 0) {
