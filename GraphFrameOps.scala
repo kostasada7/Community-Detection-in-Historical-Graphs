@@ -6,7 +6,7 @@ import org.graphframes.GraphFrame
 import wcc.GraphXOps.GXOperations
 import org.apache.spark.graphx.{Edge, Graph}
 
-object GraphFrameOps {
+object GraphFrameOps { 
 
   implicit class GFOperations(graph: GraphFrame) {
 
