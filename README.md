@@ -1,2 +1,18 @@
 # Community-Detection-in-Historical-Graphs
-This is a community detection framework tailored for temporal graphs. We introduce an algorithm designed for temporal graphs with edge intervals (t-iWCC), followed by a corresponding approach adapted for temporal graph with edge weights (t-wWCC). Additionally, we propose two variants of the Label Propagation Algorithm (LPA): one that operates using interval-based edge information (t-iLPA), and another that leverages weighted edges to capture temporal dynamics effectively (t-wLPA). In each branch we can find the code for the coresponding method. Finally, in data and intervals methodology branch we can find the intrervals methodology code regarding the Orkut dataset and two real datasets with the same time interval for all edges. The t-iWCC and t-wWCC are based on https://github.com/TariqAbughofa/incremental_distributed_wcc.
+This repository provides a community detection framework tailored for temporal graphs. We introduce two algorithms designed for temporal networks:
+
+t-iWCC: an interval-based version of the incremental distributed WCC algorithm.
+
+t-wWCC: a weighted-edge adaptation of the same method.
+
+In addition, we propose two variants of the Label Propagation Algorithm (LPA):
+
+t-iLPA, which operates on interval-based edge information.
+
+t-wLPA, which leverages weighted edges to better capture temporal dynamics.
+
+Each branch contains the code corresponding to its respective method. The data and intervals methodology branch includes the interval-processing code used for the Orkut dataset, as well as two real-world datasets that share a uniform time interval across all edges.
+
+The t-iWCC and t-wWCC implementations are based on the framework available at .
+
+To run t-iWCC and t-wWCC, execute their main files. For the remaining algorithms, simply run their standalone script files, as each consists of a single script.
